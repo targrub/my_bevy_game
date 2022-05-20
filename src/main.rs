@@ -1,5 +1,24 @@
-use bevy::prelude::*;
-//use bevy_prototype_lyon::prelude::*;
+use bevy::app::App;
+use bevy::app::Plugin;
+use bevy::render::color::Color;
+use bevy::ecs::component::Component;
+use bevy::ecs::system::Commands;
+use bevy::ecs::system::Res;
+use bevy::ecs::system::ResMut;
+use bevy::ecs::system::Query;
+use bevy::ecs::world::World;
+use bevy::asset::Assets;
+use bevy::asset::HandleUntyped;
+use bevy::render::texture::Image;
+use bevy::render::camera::Camera;
+use bevy::render::camera::OrthographicCameraBundle;
+use bevy::render::camera::OrthographicProjection;
+use bevy::render::view::Msaa;
+use bevy::transform::components::Transform;
+use bevy::utils::default;
+use bevy::DefaultPlugins;
+
+use bevy_prototype_lyon::prelude::*;
 
 use bevy::core_pipeline::{
     draw_2d_graph, node, AlphaMask3d, Opaque3d, RenderTargetClearColors, Transparent2d,
@@ -122,7 +141,6 @@ pub fn extract_camera_phases(
                 .insert_bundle((
                     RenderPhase::<Opaque3d>::default(),
                     RenderPhase::<AlphaMask3d>::default(),
-//                    RenderPhase::<Transparent3d>::default(),
                     RenderPhase::<Transparent2d>::default(),
                 ))
                 .insert(Capture {
@@ -251,28 +269,15 @@ impl Plugin for CapturePlugin {
 
 fn main() {
     App::new()
-//        .insert_resource(Msaa { samples: 4 })
+        .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
-//        .add_plugin(ShapePlugin)
+        .add_plugin(ShapePlugin)
         .add_plugin(CapturePlugin)
-//        .add_startup_system(setup_shape_rendering)
-        .add_startup_system(setup_mysystem)
+        .add_startup_system(setup_shape_rendering)
         .add_startup_system(setup_capture)
         .run();
 }
 
-pub fn setup_mysystem(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>
-) {
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
-    commands.spawn_bundle(SpriteBundle {
-        texture: asset_server.load("branding/icon.png"),
-        ..default()
-    });
-}
-
-/*
 fn setup_shape_rendering(mut commands: Commands) {
     let shape = shapes::RegularPolygon {
         sides: 6,
@@ -291,4 +296,3 @@ fn setup_shape_rendering(mut commands: Commands) {
     ));
 
 }
-*/
