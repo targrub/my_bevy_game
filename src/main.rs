@@ -5,7 +5,7 @@ use bevy::core_pipeline::{
     draw_2d_graph, node, AlphaMask3d, Opaque3d, RenderTargetClearColors, Transparent2d,
 };
 use bevy::reflect::TypeUuid;
-use bevy::render::camera::{ActiveCamera, CameraTypePlugin, RenderTarget};
+use bevy::render::camera::{ActiveCamera, CameraProjection, CameraTypePlugin, DepthCalculation, RenderTarget};
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{NodeRunError, RenderGraph, RenderGraphContext, SlotValue};
 use bevy::render::render_phase::RenderPhase;
@@ -15,6 +15,8 @@ use bevy::render::render_resource::{
 };
 use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 use bevy::render::{RenderApp, RenderStage};
+use bevy::render::primitives::Frustum;
+use bevy::render::view::VisibleEntities;
 
 #[derive(Component, Default)]
 pub struct CaptureCamera;
@@ -68,15 +70,39 @@ pub fn setup_capture(
         mapped_at_creation: false,
     });
 
+
+    let far = 1000.0;
+    let orthographic_projection = OrthographicProjection {
+        far,
+        depth_calculation: DepthCalculation::ZDifference,
+        ..Default::default()
+    };
+    let transform = Transform::from_xyz(0.0, 0.0, far - 0.1);
+    let view_projection =
+        orthographic_projection.get_projection_matrix() * transform.compute_matrix().inverse();
+    let frustum = Frustum::from_view_projection(
+        &view_projection,
+        &transform.translation,
+        &transform.back(),
+        orthographic_projection.far(),
+    );
+
     let render_target = RenderTarget::Image(image_handle);
     clear_colors.insert(render_target.clone(), Color::GRAY);
     commands
-        .spawn_bundle(PerspectiveCameraBundle::<CaptureCamera> {
+        .spawn_bundle(OrthographicCameraBundle {
             camera: Camera {
                 target: render_target,
+                near: orthographic_projection.near,
+                far: orthographic_projection.far,
                 ..default()
             },
-            ..PerspectiveCameraBundle::new()
+            orthographic_projection,
+            visible_entities: VisibleEntities::default(),
+            frustum,
+            transform,
+            global_transform: Default::default(),
+            marker: CaptureCamera,
         })
         .insert(Capture {
             buf: output_cpu_buffer,
