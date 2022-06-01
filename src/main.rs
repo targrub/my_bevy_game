@@ -1,5 +1,9 @@
+use rand::Rng;
 use bevy::app::App;
 use bevy::app::Plugin;
+use bevy::math::Quat;
+use bevy::math::Vec2;
+use bevy::math::Vec3;
 use bevy::render::color::Color;
 use bevy::ecs::component::Component;
 use bevy::ecs::system::Commands;
@@ -36,6 +40,7 @@ use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 use bevy::render::{RenderApp, RenderStage};
 use bevy::render::primitives::Frustum;
 use bevy::render::view::VisibleEntities;
+//use bevy_prototype_lyon::prelude::tess::geom::Translation;
 
 #[derive(Component, Default)]
 pub struct CaptureCamera;
@@ -53,8 +58,8 @@ pub fn setup_capture(
     render_device: Res<RenderDevice>,
 ) {
     let size = Extent3d {
-        width: 512,
-        height: 512,
+        width: 1024,
+        height: 1024,
         ..Default::default()
     };
 
@@ -78,9 +83,9 @@ pub fn setup_capture(
 
     let image_handle = images.set(CAPTURE_IMAGE_HANDLE, image);
 
-    let padded_bytes_per_row = RenderDevice::align_copy_bytes_per_row(512) * 4;
+    let padded_bytes_per_row = RenderDevice::align_copy_bytes_per_row(1024) * 4;
 
-    let size = padded_bytes_per_row as u64 * 512;
+    let size = padded_bytes_per_row as u64 * 1024;
 
     let output_cpu_buffer = render_device.create_buffer(&BufferDescriptor {
         label: Some("Output Buffer"),
@@ -107,7 +112,7 @@ pub fn setup_capture(
     );
 
     let render_target = RenderTarget::Image(image_handle);
-    clear_colors.insert(render_target.clone(), Color::GRAY);
+    clear_colors.insert(render_target.clone(), Color::BLACK);
     commands
         .spawn_bundle(OrthographicCameraBundle {
             camera: Camera {
@@ -219,8 +224,8 @@ pub fn save_img(cap: Query<&Capture>, render_device: Res<RenderDevice>) {
             image::save_buffer(
                 "test.png",
                 &large_padded_buffer,
-                512,
-                512,
+                1024,
+                1024,
                 image::ColorType::Rgba8,
             )
             .unwrap();
@@ -279,13 +284,14 @@ fn main() {
 }
 
 fn setup_shape_rendering(mut commands: Commands) {
+    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+    /*
     let shape = shapes::RegularPolygon {
         sides: 6,
         feature: shapes::RegularPolygonFeature::Radius(200.0),
         ..shapes::RegularPolygon::default()
     };
 
-    commands.spawn_bundle(OrthographicCameraBundle::new_2d());
     commands.spawn_bundle(GeometryBuilder::build_as(
         &shape,
         DrawMode::Outlined {
@@ -294,5 +300,43 @@ fn setup_shape_rendering(mut commands: Commands) {
         },
         Transform::default(),
     ));
+    */
+    let r = [20.0, 16.0, 14.0, 3.0, 1.0];
 
+    let mut p = Vec3::new(0.0, 0.0, 1.0);
+
+    let mut rng = rand::thread_rng();
+
+    for i in 0..r.len() {
+        let circ = shapes::Circle {
+            radius: r[i],
+            center: Vec2::ZERO
+        };
+        let h: f32 = rng.gen_range(0.0..360.0);
+        for _ in 0..10 {
+            let s: f32 = 0.5 + rng.gen_range(0.0..0.5);
+            let l: f32 = rng.gen_range(0.80..0.999);
+
+            for _ in 0..10 {
+                let c = Color::Hsla {
+                    hue: num::clamp(h + rng.gen_range(-10.0..10.0), 0.0, 360.0),
+                    saturation: num::clamp(s + rng.gen_range(-0.01..0.01), 0.0, 1.0),
+                    lightness: num::clamp(l + rng.gen_range(-0.05..0.05), 0.0, 1.0),
+                    alpha: 1.0
+                };
+            
+                p.x = rng.gen::<f32>() * (1024.0 - r[i] * 2.0) + r[i] - 512.0;
+                p.y = rng.gen::<f32>() * (1024.0 - r[i] * 2.0) + r[i] - 512.0;
+                commands.spawn_bundle(GeometryBuilder::build_as(
+                    &circ,
+                    DrawMode::Fill(FillMode::color(c)),
+                    Transform {
+                        translation: p,
+                        rotation: Quat::IDENTITY,
+                        scale: Vec3::ONE,
+                    },
+                ));
+            }
+        }
+    }
 }
