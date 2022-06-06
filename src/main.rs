@@ -21,6 +21,7 @@ use bevy::render::view::Msaa;
 use bevy::transform::components::Transform;
 use bevy::utils::default;
 use bevy::DefaultPlugins;
+use bevy::core_pipeline::ClearColor;
 
 use bevy_prototype_lyon::prelude::*;
 
@@ -42,6 +43,17 @@ use bevy::render::primitives::Frustum;
 use bevy::render::view::VisibleEntities;
 //use bevy_prototype_lyon::prelude::tess::geom::Translation;
 
+use palette::{FromColor, Hsl/*, Srgb */};
+
+const SCREEN_WIDTH:u32 = 1024;
+const SCREEN_HEIGHT:u32 = 1024;
+
+const TEXTURE_WIDTH:u32 = 1024;
+const TEXTURE_HEIGHT:u32 = 1024;
+
+const MIN_RADIUS:f32 = 4.0;
+const MAX_CIRCLES_PER_RADIUS:u32 = 100;
+
 #[derive(Component, Default)]
 pub struct CaptureCamera;
 
@@ -58,8 +70,8 @@ pub fn setup_capture(
     render_device: Res<RenderDevice>,
 ) {
     let size = Extent3d {
-        width: 1024,
-        height: 1024,
+        width: SCREEN_WIDTH,
+        height: SCREEN_HEIGHT,
         ..Default::default()
     };
 
@@ -83,9 +95,9 @@ pub fn setup_capture(
 
     let image_handle = images.set(CAPTURE_IMAGE_HANDLE, image);
 
-    let padded_bytes_per_row = RenderDevice::align_copy_bytes_per_row(1024) * 4;
+    let padded_bytes_per_row = RenderDevice::align_copy_bytes_per_row(TEXTURE_WIDTH.try_into().unwrap()) * 4;
 
-    let size = padded_bytes_per_row as u64 * 1024;
+    let size = padded_bytes_per_row as u64 * TEXTURE_HEIGHT as u64;
 
     let output_cpu_buffer = render_device.create_buffer(&BufferDescriptor {
         label: Some("Output Buffer"),
@@ -112,7 +124,7 @@ pub fn setup_capture(
     );
 
     let render_target = RenderTarget::Image(image_handle);
-    clear_colors.insert(render_target.clone(), Color::BLACK);
+    clear_colors.insert(render_target.clone(), Color::rgba(0.0,0.0,0.0,0.0));//Color::BLACK);
     commands
         .spawn_bundle(OrthographicCameraBundle {
             camera: Camera {
@@ -224,8 +236,8 @@ pub fn save_img(cap: Query<&Capture>, render_device: Res<RenderDevice>) {
             image::save_buffer(
                 "test.png",
                 &large_padded_buffer,
-                1024,
-                1024,
+                TEXTURE_WIDTH,
+                TEXTURE_HEIGHT,
                 image::ColorType::Rgba8,
             )
             .unwrap();
@@ -275,68 +287,114 @@ impl Plugin for CapturePlugin {
 fn main() {
     App::new()
         .insert_resource(Msaa { samples: 4 })
+        .insert_resource(ClearColor(Color::rgb(1.0, 1.0, 1.0)))
         .add_plugins(DefaultPlugins)
         .add_plugin(ShapePlugin)
         .add_plugin(CapturePlugin)
         .add_startup_system(setup_shape_rendering)
         .add_startup_system(setup_capture)
+        .add_system(bevy::input::system::exit_on_esc_system)
         .run();
+}
+
+#[derive(Debug)]
+struct MyCircle {
+    pos: Vec2,
+    r: f32,
+    c: Color
+}
+
+fn intersects_any(c:&MyCircle, cv:&Vec<MyCircle>) -> bool {
+    for tc in cv {
+        let distsq: f32 = (c.pos.x - tc.pos.x) * (c.pos.x - tc.pos.x) + (c.pos.y - tc.pos.y) * (c.pos.y - tc.pos.y);
+        let radsumsq:f32 = (c.r + tc.r) * (c.r + tc.r);
+        if (radsumsq + 50.0) > distsq {
+            return true
+        }
+    }
+    false
+}
+
+fn rand_circle_color(circle_hsl: &mut Hsl, rng:  & mut rand::prelude::ThreadRng) -> Color {
+    //let clamped_hue: f32 = num::clamp(circle_hsl.hue.to_degrees() + rng.gen_range(-30.0..30.0), 0.0, 360.0);
+    let clamped_hue = rng.gen_range(0.0..30.0);
+    circle_hsl.hue = palette::RgbHue::from_degrees(clamped_hue);
+    let c_srgb = palette::Srgb::from_color(*circle_hsl);
+    Color::rgba(c_srgb.red, c_srgb.green, c_srgb.blue, 1.0)
+}
+
+fn rand_circle_color_variation(circle_hsl: &mut Hsl, rng: &mut rand::prelude::ThreadRng) -> Color {
+    circle_hsl.saturation = num::clamp(circle_hsl.saturation + rng.gen_range(-0.01..0.01), 0.0, 1.0);
+    circle_hsl.lightness = num::clamp(circle_hsl.lightness + rng.gen_range(-0.05..0.05), 0.3, 0.9);
+    let c_srgb = palette::Srgb::from_color(*circle_hsl);
+    Color::rgba(c_srgb.red, c_srgb.green, c_srgb.blue, 1.0)
 }
 
 fn setup_shape_rendering(mut commands: Commands) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
-    /*
-    let shape = shapes::RegularPolygon {
-        sides: 6,
-        feature: shapes::RegularPolygonFeature::Radius(200.0),
-        ..shapes::RegularPolygon::default()
-    };
-
-    commands.spawn_bundle(GeometryBuilder::build_as(
-        &shape,
-        DrawMode::Outlined {
-            fill_mode: FillMode::color(Color::CYAN),
-            outline_mode: StrokeMode::new(Color::BLACK, 10.0),
-        },
-        Transform::default(),
-    ));
-    */
-    let r = [20.0, 16.0, 14.0, 3.0, 1.0];
-
-    let mut p = Vec3::new(0.0, 0.0, 1.0);
+    
+    let mut circs:Vec<MyCircle> = Vec::new();
+    let mut r = 20.0;
 
     let mut rng = rand::thread_rng();
 
-    for i in 0..r.len() {
-        let circ = shapes::Circle {
-            radius: r[i],
-            center: Vec2::ZERO
-        };
-        let h: f32 = rng.gen_range(0.0..360.0);
-        for _ in 0..10 {
-            let s: f32 = 0.5 + rng.gen_range(0.0..0.5);
-            let l: f32 = rng.gen_range(0.80..0.999);
+    let mut color_change_count = 0;
+    let mut circle_hsl: Hsl = Hsl::new(0.1, 0.8, 0.7);
+    let mut current_color = rand_circle_color(&mut circle_hsl, &mut rng);
 
-            for _ in 0..10 {
-                let c = Color::Hsla {
-                    hue: num::clamp(h + rng.gen_range(-10.0..10.0), 0.0, 360.0),
-                    saturation: num::clamp(s + rng.gen_range(-0.01..0.01), 0.0, 1.0),
-                    lightness: num::clamp(l + rng.gen_range(-0.05..0.05), 0.0, 1.0),
-                    alpha: 1.0
-                };
-            
-                p.x = rng.gen::<f32>() * (1024.0 - r[i] * 2.0) + r[i] - 512.0;
-                p.y = rng.gen::<f32>() * (1024.0 - r[i] * 2.0) + r[i] - 512.0;
-                commands.spawn_bundle(GeometryBuilder::build_as(
-                    &circ,
-                    DrawMode::Fill(FillMode::color(c)),
-                    Transform {
-                        translation: p,
-                        rotation: Quat::IDENTITY,
-                        scale: Vec3::ONE,
-                    },
-                ));
+    let mut circles_of_this_radius: u32 = 0;
+
+    loop {
+        let mut success:bool = false;
+        for _ in 1..=100 {  // take many chances to fit this circle in
+            let npos: Vec2 = Vec2::new(
+                rng.gen::<f32>() * (SCREEN_WIDTH as f32 - r * 2.0) + r - SCREEN_WIDTH as f32 / 2.0,
+                rng.gen::<f32>() * (SCREEN_WIDTH as f32 - r * 2.0) + r - SCREEN_WIDTH as f32 / 2.0);
+            let nc = MyCircle {
+              pos : npos,
+                r : r,
+                c : current_color
+            };
+            if !intersects_any(&nc, &circs) {
+                circs.push(nc);
+                success = true;
+                circles_of_this_radius += 1;
+                break
             }
         }
+        // if failure, decrease radius and loop if not <= min_radius
+        if !success || circles_of_this_radius >= MAX_CIRCLES_PER_RADIUS {
+            circles_of_this_radius = 0;
+            r -= 1.0;
+            if r <= MIN_RADIUS {
+                break
+            }
+        } else {
+            // if success, might change color's hue
+            color_change_count += 1;
+            if color_change_count >= 30 {    // every 30 circles, change color
+                color_change_count = 0;
+                current_color = rand_circle_color(&mut circle_hsl, &mut rng);
+            } else {
+                current_color = rand_circle_color_variation(&mut circle_hsl, &mut rng);
+            }
+        }
+    }
+
+    for c in circs.iter() {
+        let circ = shapes::Circle {
+            radius: c.r,
+            center: Vec2::ZERO,
+        };
+
+        commands.spawn_bundle(GeometryBuilder::build_as(
+            &circ,
+            DrawMode::Fill(FillMode::color(c.c)),
+            Transform {
+                translation: Vec3::new(c.pos.x, c.pos.y, 0.0),
+                rotation: Quat::IDENTITY,
+                scale: Vec3::ONE,
+            },
+        ));
     }
 }
