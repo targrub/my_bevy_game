@@ -41,7 +41,19 @@ use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
 use bevy::render::{RenderApp, RenderStage};
 use bevy::render::primitives::Frustum;
 use bevy::render::view::VisibleEntities;
-//use bevy_prototype_lyon::prelude::tess::geom::Translation;
+
+use bevy::ecs::schedule::SystemStage;
+use bevy::ecs::schedule::StageLabel;
+use bevy::ecs::system::Local;
+use bevy::core::Time;
+use bevy::core::FixedTimestep;
+use bevy::core::FixedTimesteps;
+use bevy::prelude::*;
+
+const LABEL: &str = "my_fixed_timestep";
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
+struct FixedUpdateStage;
 
 use palette::{FromColor, Hsl/*, Srgb */};
 
@@ -53,6 +65,11 @@ const TEXTURE_HEIGHT:u32 = 1024;
 
 const MIN_RADIUS:f32 = 4.0;
 const MAX_CIRCLES_PER_RADIUS:u32 = 100;
+
+//use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+
+#[derive(Component)]
+struct ExampleShape;
 
 #[derive(Component, Default)]
 pub struct CaptureCamera;
@@ -105,7 +122,6 @@ pub fn setup_capture(
         usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
-
 
     let far = 1000.0;
     let orthographic_projection = OrthographicProjection {
@@ -287,13 +303,27 @@ impl Plugin for CapturePlugin {
 fn main() {
     App::new()
         .insert_resource(Msaa { samples: 4 })
-        .insert_resource(ClearColor(Color::rgb(1.0, 1.0, 1.0)))
         .add_plugins(DefaultPlugins)
         .add_plugin(ShapePlugin)
-        .add_plugin(CapturePlugin)
+//        .add_plugin(CapturePlugin)
         .add_startup_system(setup_shape_rendering)
-        .add_startup_system(setup_capture)
+//        .add_startup_system(setup_capture)
         .add_system(bevy::input::system::exit_on_esc_system)
+        .add_system(frame_update)
+        .add_stage_after(
+            CoreStage::Update,
+            FixedUpdateStage,
+            SystemStage::parallel()
+                .with_run_criteria(
+                    FixedTimestep::step(1.0 / 60.0)
+                        .with_label(LABEL),
+                )
+                .with_system(fixed_update)
+                .with_system(rotate_colors)
+        )
+        .insert_resource(ClearColor(Color::rgb(1.0, 1.0, 1.0)))
+//        .add_plugin(LogDiagnosticsPlugin::default())
+//        .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .run();
 }
 
@@ -395,6 +425,39 @@ fn setup_shape_rendering(mut commands: Commands) {
                 rotation: Quat::IDENTITY,
                 scale: Vec3::ONE,
             },
-        ));
+        ))
+        .insert(ExampleShape);
+    }
+}
+
+fn frame_update(mut last_time: Local<f64>, time: Res<Time>)
+{
+    // time.seconds_since_startup() - *last_time
+    *last_time = time.seconds_since_startup();
+}
+
+fn fixed_update(mut last_time: Local<f64>, time: Res<Time>, fixed_timesteps: Res<FixedTimesteps>)
+{
+    // time.seconds_since_startup() - *last_time
+
+    let _ = fixed_timesteps.get(LABEL).unwrap();
+    // overstep_percentage = fixed_timestep.overstep_percentage();
+
+    *last_time = time.seconds_since_startup();
+}
+
+fn rotate_colors(mut query: Query<&mut DrawMode, With<ExampleShape>>)
+{
+    // get the color of the last circle in the list
+    let mut prev_drawmode = DrawMode::Fill(FillMode::color(Color::BLACK));
+    for mode in query.iter() {
+        prev_drawmode = *mode;
+    }
+    
+    // iterate through entities, and change entity n's color to that of entity n-1
+    for mut mode in query.iter_mut() {
+        let save_drawmode = *mode;
+        *mode = prev_drawmode;
+        prev_drawmode = save_drawmode;
     }
 }
