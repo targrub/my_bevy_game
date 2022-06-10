@@ -38,9 +38,9 @@ fn main() {
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_plugin(ShapePlugin)
-        .add_plugin(systems::screenshot::CapturePlugin)
+        //.add_plugin(systems::screenshot::CapturePlugin)
         .add_startup_system(systems::circles::setup_shape_rendering)
-        .add_startup_system(systems::screenshot::setup_capture)
+        //.add_startup_system(systems::screenshot::setup_capture)
         .add_system(bevy::input::system::exit_on_esc_system)
         .add_system(frame_update)
         .add_stage_after(

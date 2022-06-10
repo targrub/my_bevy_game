@@ -28,7 +28,7 @@ struct MyCircle {
     c: Color
 }
 
-fn intersects_any(c:&MyCircle, cv:&Vec<MyCircle>) -> bool {
+fn intersects_any(c:&MyCircle, cv:&[MyCircle]) -> bool {
     for tc in cv {
         let distsq: f32 = (c.pos.x - tc.pos.x) * (c.pos.x - tc.pos.x) + (c.pos.y - tc.pos.y) * (c.pos.y - tc.pos.y);
         let radsumsq:f32 = (c.r + tc.r) * (c.r + tc.r);
@@ -76,7 +76,7 @@ pub fn setup_shape_rendering(mut commands: Commands) {
                 rng.gen::<f32>() * (SCREEN_WIDTH as f32 - r * 2.0) + r - SCREEN_WIDTH as f32 / 2.0);
             let nc = MyCircle {
               pos : npos,
-                r : r,
+                r,
                 c : current_color
             };
             if !intersects_any(&nc, &circs) {
@@ -124,6 +124,7 @@ pub fn setup_shape_rendering(mut commands: Commands) {
     }
 }
 
+#[allow(clippy::manual_swap)]
 pub fn rotate_colors(mut query: Query<&mut DrawMode, With<ExampleShape>>)
 {
     // get the color of the last circle in the list
