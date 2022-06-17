@@ -1,20 +1,25 @@
+use bevy::app::App;
 use bevy::app::Plugin;
-use bevy::render::color::Color;
+use bevy::asset::Assets;
+use bevy::asset::HandleUntyped;
+use bevy::core_pipeline::{
+    draw_2d_graph, node, AlphaMask3d, Opaque3d, RenderTargetClearColors, Transparent2d,
+};
 use bevy::ecs::component::Component;
 use bevy::ecs::system::Commands;
-use bevy::asset::HandleUntyped;
-use bevy::reflect::TypeUuid;
+use bevy::ecs::system::Query;
 use bevy::ecs::system::Res;
 use bevy::ecs::system::ResMut;
-use bevy::asset::Assets;
-use bevy::render::texture::Image;
-use bevy::core_pipeline::{
-  draw_2d_graph, node, AlphaMask3d, Opaque3d, RenderTargetClearColors, Transparent2d,
-};
+use bevy::ecs::world::World;
+use bevy::reflect::TypeUuid;
 use bevy::render::camera::Camera;
 use bevy::render::camera::OrthographicCameraBundle;
 use bevy::render::camera::OrthographicProjection;
-use bevy::render::camera::{ActiveCamera, CameraProjection, CameraTypePlugin, DepthCalculation, RenderTarget};
+use bevy::render::camera::{
+    ActiveCamera, CameraProjection, CameraTypePlugin, DepthCalculation, RenderTarget,
+};
+use bevy::render::color::Color;
+use bevy::render::primitives::Frustum;
 use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_graph::{NodeRunError, RenderGraph, RenderGraphContext, SlotValue};
 use bevy::render::render_phase::RenderPhase;
@@ -23,17 +28,14 @@ use bevy::render::render_resource::{
     ImageDataLayout, MapMode, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
 };
 use bevy::render::renderer::{RenderContext, RenderDevice, RenderQueue};
-use bevy::render::{RenderApp, RenderStage};
-use bevy::render::primitives::Frustum;
+use bevy::render::texture::Image;
 use bevy::render::view::VisibleEntities;
+use bevy::render::{RenderApp, RenderStage};
 use bevy::transform::components::Transform;
 use bevy::utils::default;
-use bevy::ecs::system::Query;
-use bevy::ecs::world::World;
-use bevy::app::App;
 
-const TEXTURE_WIDTH:u32 = 1024;
-const TEXTURE_HEIGHT:u32 = 1024;
+const TEXTURE_WIDTH: u32 = 1024;
+const TEXTURE_HEIGHT: u32 = 1024;
 
 #[derive(Component, Default)]
 pub struct CaptureCamera;
@@ -76,7 +78,8 @@ pub fn setup_capture(
 
     let image_handle = images.set(CAPTURE_IMAGE_HANDLE, image);
 
-    let padded_bytes_per_row = RenderDevice::align_copy_bytes_per_row(TEXTURE_WIDTH.try_into().unwrap()) * 4;
+    let padded_bytes_per_row =
+        RenderDevice::align_copy_bytes_per_row(TEXTURE_WIDTH.try_into().unwrap()) * 4;
 
     let size = padded_bytes_per_row as u64 * TEXTURE_HEIGHT as u64;
 
@@ -104,7 +107,7 @@ pub fn setup_capture(
     );
 
     let render_target = RenderTarget::Image(image_handle);
-    clear_colors.insert(render_target.clone(), Color::rgba(0.0,0.0,0.0,0.0));//Color::BLACK);
+    clear_colors.insert(render_target.clone(), Color::rgba(0.0, 0.0, 0.0, 0.0)); //Color::BLACK);
     commands
         .spawn_bundle(OrthographicCameraBundle {
             camera: Camera {
