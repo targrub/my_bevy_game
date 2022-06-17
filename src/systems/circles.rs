@@ -49,8 +49,7 @@ pub fn setup_shape_rendering(mut commands: Commands) {
 
     let mut rng = rand::thread_rng();
 
-    let (mut generator, mut current_color) =
-        color_generator::ColorGenerator::new(0.1, 0.8, 0.7, rng.clone());
+    let (mut generator, mut current_color) = color_generator::ColorGenerator::new(0.1, 0.8, 0.7);
 
     let mut color_change_count = 0;
     let mut circles_of_this_radius: u32 = 0;
@@ -88,9 +87,9 @@ pub fn setup_shape_rendering(mut commands: Commands) {
             if color_change_count >= 30 {
                 // every 30 circles, change color
                 color_change_count = 0;
-                current_color = generator.rand_color();
+                current_color = generator.rand_color(&mut rng);
             } else {
-                current_color = generator.rand_color_variation();
+                current_color = generator.rand_color_variation(&mut rng);
             }
         }
     }
