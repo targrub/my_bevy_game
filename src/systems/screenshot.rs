@@ -34,9 +34,6 @@ use bevy::render::{RenderApp, RenderStage};
 use bevy::transform::components::Transform;
 use bevy::utils::default;
 
-const TEXTURE_WIDTH: u32 = 1024;
-const TEXTURE_HEIGHT: u32 = 1024;
-
 #[derive(Component, Default)]
 pub struct CaptureCamera;
 
@@ -52,9 +49,10 @@ pub fn setup_capture(
     mut clear_colors: ResMut<RenderTargetClearColors>,
     render_device: Res<RenderDevice>,
 ) {
+    let texture_size = 256;
     let size = Extent3d {
-        width: crate::SCREEN_WIDTH,
-        height: crate::SCREEN_HEIGHT,
+        width: texture_size,
+        height: texture_size,
         ..Default::default()
     };
 
@@ -78,10 +76,9 @@ pub fn setup_capture(
 
     let image_handle = images.set(CAPTURE_IMAGE_HANDLE, image);
 
-    let padded_bytes_per_row =
-        RenderDevice::align_copy_bytes_per_row(TEXTURE_WIDTH.try_into().unwrap()) * 4;
+    let padded_bytes_per_row = RenderDevice::align_copy_bytes_per_row(256) * 4;
 
-    let size = padded_bytes_per_row as u64 * TEXTURE_HEIGHT as u64;
+    let size = padded_bytes_per_row as u64 * 256u64;
 
     let output_cpu_buffer = render_device.create_buffer(&BufferDescriptor {
         label: Some("Output Buffer"),
@@ -219,8 +216,8 @@ pub fn save_img(cap: Query<&Capture>, render_device: Res<RenderDevice>) {
             image::save_buffer(
                 "test.png",
                 &large_padded_buffer,
-                TEXTURE_WIDTH,
-                TEXTURE_HEIGHT,
+                256,
+                256,
                 image::ColorType::Rgba8,
             )
             .unwrap();

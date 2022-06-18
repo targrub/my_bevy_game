@@ -1,3 +1,5 @@
+// some uses aren't used when running headless
+//#![allow(unused_imports)]
 use bevy::app::App;
 use bevy::app::CoreStage;
 
@@ -16,7 +18,13 @@ use bevy::core::Time;
 use bevy::core_pipeline::ClearColor;
 
 use bevy::render::color::Color;
+//needed when running headless
+//use bevy::render::settings::WgpuSettings;
 use bevy::render::view::Msaa;
+
+use bevy::utils::default;
+
+use bevy::window::WindowDescriptor;
 
 use bevy_prototype_lyon::prelude::ShapePlugin;
 
@@ -29,17 +37,22 @@ const LABEL: &str = "my_fixed_timestep";
 #[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
 struct FixedUpdateStage;
 
-pub const SCREEN_WIDTH: u32 = 1024;
-pub const SCREEN_HEIGHT: u32 = 1024;
-
 fn main() {
     App::new()
+        .insert_resource(WindowDescriptor {
+            title: "My Gamename!".to_string(),
+            width: 1280.,
+            height: 1024.,
+            ..default()
+        })
+        // if running headless, add this resource
+        // .insert_resource(WgpuSettings { backends: None, ..default()} )
         .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
         .add_plugin(ShapePlugin)
-        //.add_plugin(systems::screenshot::CapturePlugin)
+//        .add_plugin(systems::screenshot::CapturePlugin)
         .add_startup_system(systems::circles::setup_shape_rendering)
-        //.add_startup_system(systems::screenshot::setup_capture)
+//        .add_startup_system(systems::screenshot::setup_capture)
         .add_system(bevy::input::system::exit_on_esc_system)
         .add_system(frame_update)
         .add_stage_after(
@@ -51,6 +64,7 @@ fn main() {
                 .with_system(systems::circles::rotate_colors),
         )
         .insert_resource(ClearColor(Color::rgb(1.0, 1.0, 1.0)))
+        // for diagnotic system
         //        .add_plugin(LogDiagnosticsPlugin::default())
         //        .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .run();

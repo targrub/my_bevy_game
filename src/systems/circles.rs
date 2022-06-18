@@ -2,19 +2,19 @@ use bevy::ecs::component::Component;
 use bevy::ecs::query::With;
 use bevy::ecs::system::Commands;
 use bevy::ecs::system::Query;
+//use bevy::ecs::system::Res;
 use bevy::math::Quat;
 use bevy::math::Vec2;
 use bevy::math::Vec3;
 use bevy::render::camera::OrthographicCameraBundle;
 use bevy::render::color::Color;
 use bevy::transform::components::Transform;
+//use bevy::window::Windows;
 use rand::Rng;
 
 use bevy_prototype_lyon::prelude::*;
 
 use crate::systems::color_generator;
-
-use crate::SCREEN_WIDTH;
 
 const MIN_RADIUS: f32 = 4.0;
 const MAX_CIRCLES_PER_RADIUS: u32 = 100;
@@ -41,8 +41,10 @@ fn intersects_any(c: &MyCircle, cv: &[MyCircle]) -> bool {
     false
 }
 
-pub fn setup_shape_rendering(mut commands: Commands) {
+pub fn setup_shape_rendering(mut commands: Commands/* , windows: Res<Windows>*/) {
     commands.spawn_bundle(OrthographicCameraBundle::new_2d());
+
+    let window_width = 1280;//windows.primary().physical_width();
 
     let mut circs: Vec<MyCircle> = Vec::new();
     let mut r = 20.0;
@@ -59,8 +61,8 @@ pub fn setup_shape_rendering(mut commands: Commands) {
         for _ in 1..=100 {
             // take many chances to fit this circle in
             let npos: Vec2 = Vec2::new(
-                rng.gen::<f32>() * (SCREEN_WIDTH as f32 - r * 2.0) + r - SCREEN_WIDTH as f32 / 2.0,
-                rng.gen::<f32>() * (SCREEN_WIDTH as f32 - r * 2.0) + r - SCREEN_WIDTH as f32 / 2.0,
+                rng.gen::<f32>() * (window_width as f32 - r * 2.0) + r - window_width as f32 / 2.0,
+                rng.gen::<f32>() * (window_width as f32 - r * 2.0) + r - window_width as f32 / 2.0,
             );
             let nc = MyCircle {
                 pos: npos,
