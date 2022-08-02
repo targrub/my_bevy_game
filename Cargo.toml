@@ -11,8 +11,8 @@ opt-level = 3
 opt-level = 3
 
 [dependencies]
-bevy = "0.7"
-bevy_prototype_lyon = "0.5.0"
+bevy = "0.8"
+#bevy_prototype_lyon = "0.5.0"
 image = "0.24"
 rand = "0.8.5"
 num = "0.3.0"
