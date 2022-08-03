@@ -18,6 +18,9 @@ use bevy::{
 
 use crate::RenderToTexturePass;
 
+use super::circles::Circles1;
+use super::circles::Circles2;
+
 #[derive(Default)]
 pub struct AddDynamicTextureEvent {
     pub description: Option<RenderToTextureDescriptor>,
@@ -30,15 +33,16 @@ impl Plugin for DynamicTexturesPlugin {
         app.init_resource::<DynamicTextures>()
             .add_event::<AddDynamicTextureEvent>()
             .add_system(add_dynamic_texture_event_handler)
-            .add_system(update_dynamic_textures);
+            .add_system(crate::systems::circles::circles1_add_circles_to_layer)
+            .add_system(crate::systems::circles::circles2_add_circles_to_layer)
+            .add_system(crate::systems::circles::circles1_update_colors)
+            .add_system(crate::systems::circles::circles2_update);
     }
 }
 
 fn add_dynamic_texture_event_handler(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mut events: EventReader<AddDynamicTextureEvent>,
     mut dyntex: ResMut<DynamicTextures>,
 ) {
@@ -47,14 +51,17 @@ fn add_dynamic_texture_event_handler(
             if let Some(layer) = dyntex.get_available_render_layer() {
                 let handle_id = set_up_dynamic_texture(&mut commands, &mut images, &desc, layer);
                 dyntex.add_dynamic_texture(&desc, layer, Handle::weak(handle_id));
-                (desc.setup_func)(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    &desc.start_color,
-                    &desc.background_color,
-                    layer,
-                );
+                match desc.functype {
+                    "Circles1" => {
+                        commands.spawn().insert(Circles1::new(layer, &desc));
+                    }
+                    "Circles2" => {
+                        commands.spawn().insert(Circles2::new(layer, &desc));
+                    }
+                    _ => {
+                        unimplemented!("{}", desc.functype);
+                    }
+                }
             } else {
                 // Ran out of render layers
             }
@@ -78,18 +85,16 @@ impl std::fmt::Display for StartColor {
 #[derive(Component, Clone, Copy)]
 pub struct RenderToTextureDescriptor {
     pub name: &'static str,
+    pub functype: &'static str,
     pub size: u32,
     pub start_color: StartColor,
     pub background_color: Color,
-    pub setup_func:
-        fn(&mut Commands, &mut Assets<Mesh>, &mut Assets<ColorMaterial>, &StartColor, &Color, u8),
-    pub render_func: fn(&mut Assets<Mesh>, &mut Assets<ColorMaterial>),
 }
 
 #[derive(Default)]
 pub struct DynamicTextures {
     list: Vec<(u8, (Handle<Image>, RenderToTextureDescriptor))>,
-    map: HashMap<String, Handle<Image>>,
+    map: HashMap<String, (Handle<Image>, u8)>,
     highest_render_layer: u8,
 }
 
@@ -102,7 +107,7 @@ impl DynamicTextures {
         }
     }
 
-    pub fn get_texture_handle(&self, name: &str) -> Option<&Handle<Image>> {
+    pub fn get_texture_handle(&self, name: &str) -> Option<&(Handle<Image>, u8)> {
         self.map.get(name)
     }
 
@@ -114,7 +119,7 @@ impl DynamicTextures {
     ) {
         self.list.push((layer, (Handle::weak(h.id), *descriptor)));
         self.map
-            .insert(descriptor.name.to_string(), Handle::weak(h.id));
+            .insert(descriptor.name.to_string(), (Handle::weak(h.id), layer));
     }
 
     fn get_available_render_layer(&mut self) -> Option<u8> {
@@ -124,18 +129,6 @@ impl DynamicTextures {
         } else {
             None
         }
-    }
-}
-
-fn update_dynamic_textures(
-    mut commands: Commands,
-    mut images: ResMut<Assets<Image>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    dyntex: Res<DynamicTextures>,
-) {
-    for (layer, (handle_opt, descriptor)) in &dyntex.list {
-        (descriptor.render_func)(&mut meshes, &mut materials);
     }
 }
 

@@ -2,20 +2,11 @@
 #![warn(clippy::pedantic, clippy::cargo)]
 #![allow(
     clippy::module_name_repetitions,
-    clippy::cargo_common_metadata,
-    clippy::type_complexity,
-    clippy::too_many_arguments,
     clippy::needless_pass_by_value,
     clippy::multiple_crate_versions,
-    clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,
-    clippy::cast_precision_loss,
-    clippy::too_many_lines,
-    clippy::similar_names,
-    clippy::must_use_candidate,
-    clippy::enum_glob_use
+    clippy::cast_precision_loss
 )]
-
 #![allow(dead_code, unused)]
 
 use bevy::prelude::*;
@@ -23,8 +14,8 @@ use bevy::prelude::*;
 mod systems;
 
 use bevy::core_pipeline::clear_color::ClearColorConfig;
-use systems::dynamic_textures::{DynamicTextures, DynamicTexturesPlugin};
 use systems::dynamic_textures::{AddDynamicTextureEvent, RenderToTextureDescriptor, StartColor};
+use systems::dynamic_textures::{DynamicTextures, DynamicTexturesPlugin};
 
 #[derive(Component, Default)]
 pub struct RenderToTexturePass;
@@ -44,20 +35,18 @@ const GREEN_MONSTER_START_COLOR: StartColor = StartColor {
 
 const RED_MONSTER_DESCRIPTOR: RenderToTextureDescriptor = RenderToTextureDescriptor {
     name: "red_256",
+    functype: "Circles2",
     size: 256,
     start_color: RED_MONSTER_START_COLOR,
     background_color: Color::MAROON,
-    setup_func: systems::circles::add_circles_to_layer,
-    render_func: systems::circles::update_colors,
 };
 
 const GREEN_MONSTER_DESCRIPTOR: RenderToTextureDescriptor = RenderToTextureDescriptor {
     name: "green_512",
+    functype: "Circles2",
     size: 512,
     start_color: GREEN_MONSTER_START_COLOR,
     background_color: Color::LIME_GREEN,
-    setup_func: systems::circles::add_circles_to_layer,
-    render_func: systems::circles::update_colors,
 };
 
 //------------------------------------------------------------
@@ -87,9 +76,7 @@ fn main() {
 
     app.add_startup_system(add_game_camera);
 
-    app
-    .add_system(bevy::window::close_on_esc)
-    .run();
+    app.add_system(bevy::window::close_on_esc).run();
 }
 
 fn draw_textured_rect_setup(
@@ -103,7 +90,7 @@ fn draw_textured_rect_setup(
         if !*added_sprite {
             commands
                 .spawn_bundle(SpriteBundle {
-                    texture: Handle::weak(texture_handle.id),
+                    texture: Handle::weak(texture_handle.0.id),
                     ..default()
                 })
                 .insert(Direction::Up);
@@ -113,9 +100,9 @@ fn draw_textured_rect_setup(
         ew.send(AddDynamicTextureEvent {
             description: Some(RED_MONSTER_DESCRIPTOR),
         });
-        ew.send(AddDynamicTextureEvent {
-            description: Some(GREEN_MONSTER_DESCRIPTOR),
-        });
+        //        ew.send(AddDynamicTextureEvent {
+        //            description: Some(GREEN_MONSTER_DESCRIPTOR),
+        //        });
         *added_textures = true;
     }
 }
