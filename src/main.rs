@@ -17,9 +17,6 @@ use bevy::core_pipeline::clear_color::ClearColorConfig;
 use systems::dynamic_textures::{AddDynamicTextureEvent, RenderToTextureDescriptor, StartColor};
 use systems::dynamic_textures::{DynamicTextures, DynamicTexturesPlugin};
 
-#[derive(Component, Default)]
-pub struct RenderToTexturePass;
-
 //-----------------------
 
 const RED_MONSTER_START_COLOR: StartColor = StartColor {

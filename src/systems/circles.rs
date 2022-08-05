@@ -1,24 +1,20 @@
-use bevy::app::App;
-use bevy::asset::{Assets, Handle};
-use bevy::core_pipeline::{clear_color::ClearColorConfig, core_2d::Camera2d};
-use bevy::ecs::world::{FromWorld, World};
+use bevy::asset::{Assets};
 use bevy::ecs::{
     component::Component,
-    system::{Commands, Query, Res, ResMut, SystemParam},
+    system::{Commands, Query, Res, ResMut},
 };
 use bevy::math::{Vec2, Vec3};
-use bevy::render::{camera::Camera, color::Color, mesh::shape, mesh::Mesh, view::RenderLayers};
-use bevy::sprite::{ColorMaterial, Material2d, MaterialMesh2dBundle, Mesh2dHandle};
+use bevy::render::{color::Color, mesh::shape, mesh::Mesh, view::RenderLayers};
+use bevy::sprite::{ColorMaterial, MaterialMesh2dBundle, Mesh2dHandle};
 use bevy::time::Time;
 use bevy::transform::components::Transform;
 use bevy::utils::default;
 use palette::{rgb::Rgb, FromColor, Hsl, Srgb};
 use rand::Rng;
-use std::cmp::Ordering;
 //use bevy::prelude::*;
 
 use crate::systems::color_generator;
-use crate::StartColor;
+use crate::systems::dynamic_textures::StartColor;
 
 use super::dynamic_textures::RenderToTextureDescriptor;
 
@@ -132,7 +128,6 @@ pub fn circles1_add_circles_to_layer(
 
 //#[allow(clippy::manual_swap)]
 pub fn circles1_update_colors(
-    mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut query: Query<&mut Circles1>,
 ) {
@@ -144,7 +139,7 @@ pub fn circles1_update_colors(
             continue;
         }
         // get the color of the last circle in the list
-        let (saved_handle_id, mut saved_color_mat) = materials.iter_mut().last().unwrap();
+        let (_, saved_color_mat) = materials.iter_mut().last().unwrap();
         let mut prev_color = saved_color_mat.color;
         // rotate all the colors around through all ColorMaterials
         for m in materials.iter_mut() {
@@ -301,7 +296,6 @@ pub fn circles2_add_circles_to_layer(
 
 pub fn circles2_update(
     time: Res<Time>,
-    mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut query: Query<&mut Circles2>,

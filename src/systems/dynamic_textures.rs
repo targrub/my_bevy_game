@@ -1,22 +1,19 @@
-use bevy::sprite::ColorMaterial;
-use bevy::sprite::Material2d;
 use bevy::{
     asset::HandleId,
     core_pipeline::clear_color::ClearColorConfig,
     prelude::*,
     render::{
         camera::RenderTarget,
-        mesh::MeshPlugin,
         render_resource::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
         view::RenderLayers,
     },
-    sprite::Mesh2dHandle,
     utils::HashMap,
 };
 
-use crate::RenderToTexturePass;
+#[derive(Component, Default)]
+pub struct RenderToTexturePass;
 
 use super::circles::Circles1;
 use super::circles::Circles2;
@@ -99,14 +96,6 @@ pub struct DynamicTextures {
 }
 
 impl DynamicTextures {
-    fn default() -> Self {
-        DynamicTextures {
-            list: Vec::new(),
-            map: HashMap::new(),
-            highest_render_layer: 0,
-        }
-    }
-
     pub fn get_texture_handle(&self, name: &str) -> Option<&(Handle<Image>, u8)> {
         self.map.get(name)
     }
